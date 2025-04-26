@@ -3,34 +3,35 @@ const Book = require('../models/Book');
 
 const getWishlist = async (userId) => {
     // Finds all wishlist items for a user and populates the book details.
-    return await Wishlist.find({ userId }).populate('bookId');
+    return await Wishlist.find({ userId });
 };
 
-const addToWishlist = async (userId, bookId, category = 'default') => {
-    // Verify that the book exists.
-    const book = await Book.findById(bookId);
-    if (!book) {
-        throw new Error('Book not found');
-    }
+const addToWishlist = async (userId, book, category = 'default') => {
+    // Check if book already exists in user's wishlist
+    const existing = await Wishlist.findOne({ 
+        userId, 
+        'book.title': book.title,
+        'book.author': book.author
+    });
     
-    // Ensure the book is not already in the user's wishlist.
-    const existing = await Wishlist.findOne({ userId, bookId });
     if (existing) {
-        throw new Error('Book already in wishlist');
+        throw new Error('This book is already in your wishlist');
     }
     
+    // Create new wishlist item with full book data
     const wishlistItem = await Wishlist.create({
         userId,
-        bookId,
+        book, // Store the complete book object
         category
     });
     
     return wishlistItem;
 };
 
-const removeFromWishlist = async (userId, bookId) => {
+
+const removeFromWishlist = async (userId, isbn) => {
     // Remove the wishlist item belonging to the user for the specified book.
-    const deletion = await Wishlist.findOneAndDelete({ userId, bookId });
+    const deletion = await Wishlist.findOneAndDelete({ userId, "book.isbn" : isbn });
     if (!deletion) {
         throw new Error('Wishlist item not found');
     }
