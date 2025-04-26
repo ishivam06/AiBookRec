@@ -14,8 +14,15 @@ const addToWishlist = async (req, res, next) => {
     try {
         const userId = req.user._id;
         // Expecting bookId (and optionally, a category) in the request body.
-        const { bookId, category } = req.body;
-        const wishlistItem = await wishlistService.addToWishlist(userId, bookId, category);
+        const book= req.body.book;
+        console.log(req.body.book);
+        if (!book || !book.title || !book.author) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Invalid book data' 
+            });
+        }
+        const wishlistItem = await wishlistService.addToWishlist(userId, book,category="default");
         res.status(201).json({ success: true, data: wishlistItem });
     } catch (error) {
         next(error);

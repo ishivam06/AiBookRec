@@ -7,6 +7,7 @@ const bookRoutes = require('./routes/bookRoutes');
 const rateLimiter = require("./middleware/rateLimiter");
 const llmRoutes = require("./routes/llmRoutes");
 const moodRoutes = require('./routes/moodRoutes');
+const wishlistRoutes = require('./routes/wishlistRoutes');
 
 
 // Load environment variables
@@ -28,6 +29,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/books', bookRoutes);
 app.use("/api/llm", llmRoutes);
 app.use('/api/mood', moodRoutes);
+app.use('/api/wishlist',wishlistRoutes);
 
 
 

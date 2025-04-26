@@ -6,8 +6,8 @@ const wishlistSchema = new mongoose.Schema({
         ref: 'User',
         required: true,
     },
-    bookId: {
-        type: mongoose.Schema.Types.ObjectId,
+    book: {
+        type: mongoose.Schema.Types.Mixed,
         ref: 'Book',
         required: true,
     },
