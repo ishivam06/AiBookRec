@@ -18,6 +18,7 @@ dotenv.config({ debug: true });
 connectDB();
 
 const app = express();
+app.set('trust proxy', 1);
 
 app.use(rateLimiter);
 
