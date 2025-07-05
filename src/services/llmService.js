@@ -2,8 +2,18 @@ const OpenAI = require("openai");
 const { fetchGoogleBooks } = require("./googleBooksService");
 const moodGenreMapping = require('../config/moodGenreMapping');
 
+const openaiApiKey = process.env.OPENAI_API_KEY;
+
+if (!openaiApiKey) {
+  const errorMessage = "OpenAI API key is missing. Please set the OPENAI_API_KEY environment variable.";
+  console.error(errorMessage);
+  return { error: errorMessage };
+}
+
 const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
+  apiKey: openaiApiKey,
+  maxRetries: 5,        // Increase retry attempts (default is 2)
+  timeout: 20_000,      // 20 s timeout per request (default is 10 min)
 });
 
 /**
@@ -14,7 +24,7 @@ const openai = new OpenAI({
  * @returns {Object} filters - The extracted filters and book titles.
  */
 async function extractFilters(userQuery) {
-    const prompt = `
+  const prompt = `
 You are an advanced AI assistant that extracts structured filters and relevant book titles from a user query for a book search.  
 Ensure **no hallucinated data**—extract only real, user-mentioned information or widely recognized book titles.  
 
@@ -65,33 +75,33 @@ Return **ONLY** the JSON output without any extra text.
 
 
 
-    try {
-        const aiResponse = await openai.chat.completions.create({
-            model: "gpt-4",
-            messages: [{ role: "user", content: prompt }],
-        });
+  try {
+    const aiResponse = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [{ role: "user", content: prompt }],
+    });
 
-        const responseContent = aiResponse.choices[0].message.content.trim();
-        console.log("LLM Raw Response:", responseContent);
+    const responseContent = aiResponse.choices[0].message.content.trim();
+    console.log("LLM Raw Response:", responseContent);
 
-        return JSON.parse(responseContent);
-    } catch (error) {
-        console.error("Error extracting filters and book titles from LLM:", error);
-        return {
-            title: null,
-            author: null,
-            topics: [],
-            genre: null,
-            language: null,
-            year: null,
-            minRating: null,
-            minPages: null,
-            publisher: null,
-            isbn: null,
-            filters: [],
-            bookTitles: []
-        };
-    }
+    return JSON.parse(responseContent);
+  } catch (error) {
+    console.error("Error extracting filters and book titles from LLM:", error);
+    return {
+      title: null,
+      author: null,
+      topics: [],
+      genre: null,
+      language: null,
+      year: null,
+      minRating: null,
+      minPages: null,
+      publisher: null,
+      isbn: null,
+      filters: [],
+      bookTitles: []
+    };
+  }
 }
 
 /**
@@ -171,27 +181,27 @@ async function getBookRecommendations(userQuery) {
  * @returns {Array} - Combined list of unique book results.
  */
 function mergeResults(prioritizedBooks, genericResults) {
-    const seen = new Set();
-    const merged = [];
+  const seen = new Set();
+  const merged = [];
 
-    // First, add the prioritized books.
-    for (const book of prioritizedBooks) {
-        const identifier = book.isbn || `${book.title}-${book.author}`.toLowerCase().trim();
-        if (!seen.has(identifier)) {
-            seen.add(identifier);
-            merged.push(book);
-        }
+  // First, add the prioritized books.
+  for (const book of prioritizedBooks) {
+    const identifier = book.isbn || `${book.title}-${book.author}`.toLowerCase().trim();
+    if (!seen.has(identifier)) {
+      seen.add(identifier);
+      merged.push(book);
     }
+  }
 
-    // Next, add generic search results if they aren't duplicates.
-    for (const book of genericResults) {
-        const identifier = book.isbn || `${book.title}-${book.author}`.toLowerCase().trim();
-        if (!seen.has(identifier)) {
-            seen.add(identifier);
-            merged.push(book);
-        }
+  // Next, add generic search results if they aren't duplicates.
+  for (const book of genericResults) {
+    const identifier = book.isbn || `${book.title}-${book.author}`.toLowerCase().trim();
+    if (!seen.has(identifier)) {
+      seen.add(identifier);
+      merged.push(book);
     }
-    return merged;
+  }
+  return merged;
 }
 
 /**
@@ -201,33 +211,33 @@ function mergeResults(prioritizedBooks, genericResults) {
  * @returns {Array} - Array of unique book objects from each genre matching the provided mood.
  */
 async function getBooksByMood(mood) {
-    if (!mood || !moodGenreMapping[mood]) {
-        throw new Error("Invalid mood provided");
+  if (!mood || !moodGenreMapping[mood]) {
+    throw new Error("Invalid mood provided");
+  }
+
+  const genres = moodGenreMapping[mood];
+
+  // For each genre in the mood, execute a search. Adjust maxResults per genre if needed.
+  const resultsArrays = await Promise.all(
+    genres.map(async (genre) => {
+      const filters = { genre };  // Using the "genre" field in our query
+      return await fetchGoogleBooks(filters, [], 10);
+    })
+  );
+
+  // Combine all results into one array
+  const combinedResults = resultsArrays.flat();
+
+  // Deduplicate results based on ISBN or a combination of title and author
+  const uniqueMap = new Map();
+  combinedResults.forEach(book => {
+    const identifier = book.isbn || `${book.title}-${book.author}`.toLowerCase().trim();
+    if (!uniqueMap.has(identifier)) {
+      uniqueMap.set(identifier, book);
     }
-    
-    const genres = moodGenreMapping[mood];
+  });
 
-    // For each genre in the mood, execute a search. Adjust maxResults per genre if needed.
-    const resultsArrays = await Promise.all(
-        genres.map(async (genre) => {
-            const filters = { genre };  // Using the "genre" field in our query
-            return await fetchGoogleBooks(filters, [], 10);
-        })
-    );
-
-    // Combine all results into one array
-    const combinedResults = resultsArrays.flat();
-
-    // Deduplicate results based on ISBN or a combination of title and author
-    const uniqueMap = new Map();
-    combinedResults.forEach(book => {
-        const identifier = book.isbn || `${book.title}-${book.author}`.toLowerCase().trim();
-        if (!uniqueMap.has(identifier)) {
-            uniqueMap.set(identifier, book);
-        }
-    });
-
-    return Array.from(uniqueMap.values());
+  return Array.from(uniqueMap.values());
 }
 
 module.exports = { getBooksDirect, getBookRecommendations, extractFilters, getBooksByMood };

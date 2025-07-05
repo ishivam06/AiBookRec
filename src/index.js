@@ -1,5 +1,5 @@
-const express = require('express');
 const dotenv = require('dotenv');
+const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
 const userRoutes = require('./routes/userRoutes');
@@ -11,8 +11,7 @@ const wishlistRoutes = require('./routes/wishlistRoutes');
 
 
 // Load environment variables
-dotenv.config({ debug: true });
-
+dotenv.config({ debug: true , override: true });
 
 // Connect to the database
 connectDB();
